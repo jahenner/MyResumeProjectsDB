@@ -1,6 +1,8 @@
 import unittest
 import sqlite3
 import json
+import tempfile
+import os
 from datetime import date
 
 from src.schema import Project, Challenge
@@ -8,8 +10,12 @@ from src.db import PortfolioDB
 
 class TestPortfolioDB(unittest.TestCase):
     def setUp(self):
-        """Initialize a fresh, isolated in-memory database before every test."""
-        self.db = PortfolioDB(db_path=":memory:")
+        """Create a temporary database file before every test."""
+        # Create a secure temporary directory
+        self.test_dir = tempfile.TemporaryDirectory()
+        self.db_path = os.path.join(self.test_dir.name, "test_portfolio.db")
+        
+        self.db = PortfolioDB(db_path=self.db_path)
         self.db.setup()
         
         self.mock_project = Project(
@@ -26,6 +32,10 @@ class TestPortfolioDB(unittest.TestCase):
             ],
             repo_url="https://github.com/example/malware-triage"
         )
+        
+    def tearDown(self):
+        """Automatically delete the temporary database and directory after the test."""
+        self.test_dir.cleanup()
 
     def test_table_creation(self):
         """Ensure the projects table is created successfully."""
