@@ -1,0 +1,14 @@
+# Environment & Secrets
+.env
+.venv/
+.vscode/
+
+# Database
+portfolio.db
+portfolio.db-journal
+
+# Python Cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
