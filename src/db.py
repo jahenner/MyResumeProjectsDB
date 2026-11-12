@@ -1,9 +1,8 @@
 import sqlite3
 import json
 from dataclasses import asdict
-from typing import List
 
-from .schema import Project, Challenge, Context, Tool, Environment
+from .schema import Project, Context, Tool, Environment
 
 class PortfolioDB:
     def __init__(self, db_path: str = "portfolio.db"):
