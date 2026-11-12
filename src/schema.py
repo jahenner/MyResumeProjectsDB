@@ -9,24 +9,41 @@ class Challenge:
     solution: str
 
 @dataclass
+class Context:
+    id: str
+    name: str
+    description: str
+
+@dataclass
+class Tool:
+    id: str
+    name: str
+    description: str
+    doc_url: Optional[str]
+
+@dataclass
+class Environment:
+    id: str
+    name: str
+    description: str
+
+@dataclass
 class Project:
     id: str
     title: str
-    context: str  # e.g., "Academic", "Personal", "Professional"
+    context_id: str
+    environment_id: str
     start_date: date
     end_date: Optional[date]
     summary: str
-    tools: List[str]
-    environment: str
+    tool_ids: List[str]
     challenges: List[Challenge]
     repo_url: Optional[str]
 
     def to_dict(self) -> dict:
-        """Converts the dataclass to a dictionary, handling nested dataclasses."""
         return asdict(self)
 
     def to_json(self) -> str:
-        """Serializes the project to a JSON string, natively handling date objects."""
         def date_handler(obj):
             if isinstance(obj, date):
                 return obj.isoformat()
