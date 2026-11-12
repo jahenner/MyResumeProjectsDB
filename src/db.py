@@ -1,9 +1,10 @@
 import sqlite3
 import json
 from typing import List
+from datetime import date
 from dataclasses import asdict
 
-from .schema import Project, Context, Tool, Environment
+from .schema import Project, Context, Challenge, Tool, Environment
 
 class PortfolioDB:
     def __init__(self, db_path: str = "portfolio.db"):
@@ -142,3 +143,63 @@ class PortfolioDB:
     def get_all_tools(self) -> List[tuple]:
         with self.get_connection() as conn:
             return conn.execute("SELECT id, name FROM tools ORDER BY name").fetchall()
+        
+    def get_all_projects(self) -> list[tuple]:
+        with self.get_connection() as conn:
+            return conn.execute("SELECT id, title FROM projects ORDER BY title").fetchall()
+        
+    def get_project(self, project_id: str) -> Project | None:
+        """Fetches a single project and reconstructs the dataclass."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, title, context_id, environment_id, start_date, end_date, summary, challenges, repo_url FROM projects WHERE id=?", (project_id,))
+            row = cursor.fetchone()
+            
+            if not row:
+                return None
+                
+            p_id, title, ctx_id, env_id, start_str, end_str, summary, chall_json, repo = row
+            
+            cursor.execute("SELECT tool_id FROM project_tools WHERE project_id=?", (project_id,))
+            tool_ids = [r[0] for r in cursor.fetchall()]
+            
+            start_parts = [int(x) for x in start_str.split("-")]
+            end_date_obj = date(*[int(x) for x in end_str.split("-")]) if end_str else None
+            challenges = [Challenge(**c) for c in json.loads(chall_json)]
+            
+            return Project(p_id, title, ctx_id, env_id, date(*start_parts), end_date_obj, summary, tool_ids, challenges, repo)
+        
+    def get_context(self, context_id: str) -> Context | None:
+        with self.get_connection() as conn:
+            row = conn.execute("SELECT id, name, description FROM contexts WHERE id=?", (context_id,)).fetchone()
+            return Context(id=row[0], name=row[1], description=row[2]) if row else None
+
+    def get_environment(self, env_id: str) -> Environment | None:
+        with self.get_connection() as conn:
+            row = conn.execute("SELECT id, name, description FROM environments WHERE id=?", (env_id,)).fetchone()
+            return Environment(id=row[0], name=row[1], description=row[2]) if row else None
+
+    def get_tool(self, tool_id: str) -> Tool | None:
+        with self.get_connection() as conn:
+            row = conn.execute("SELECT id, name, description, doc_url FROM tools WHERE id=?", (tool_id,)).fetchone()
+            return Tool(id=row[0], name=row[1], description=row[2], doc_url=row[3]) if row else None
+
+    def delete_project(self, project_id: str) -> bool:
+        """Deletes a project. ON DELETE CASCADE clears the project_tools junction table automatically."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM projects WHERE id=?", (project_id,))
+            conn.commit()
+            return cursor.rowcount > 0
+
+    def delete_context(self, context_id: str) -> None:
+        with self.get_connection() as conn:
+            conn.execute("DELETE FROM contexts WHERE id=?", (context_id,))
+
+    def delete_environment(self, env_id: str) -> None:
+        with self.get_connection() as conn:
+            conn.execute("DELETE FROM environments WHERE id=?", (env_id,))
+
+    def delete_tool(self, tool_id: str) -> None:
+        with self.get_connection() as conn:
+            conn.execute("DELETE FROM tools WHERE id=?", (tool_id,))

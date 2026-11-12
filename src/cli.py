@@ -1,4 +1,5 @@
 import argparse
+import sqlite3
 from datetime import date
 
 from .db import PortfolioDB
@@ -58,6 +59,11 @@ def list_tools(args=None):
     db = PortfolioDB()
     print("\n--- Available Tools ---")
     print_table(["Tool ID", "Tool Name"], db.get_all_tools())
+    
+def list_projects(args=None):
+    db = PortfolioDB()
+    print("\n--- Available Projects ---")
+    print_table(["Project ID", "Project Title"], db.get_all_projects())
 
 # --- Interactive Project ---
 def interactive_project(args):
@@ -138,6 +144,146 @@ def interactive_project(args):
     
     db.upsert_project(project)
     print(f"\n[+] Project '{title}' saved successfully.")
+    
+def update_project(args):
+    db = PortfolioDB()
+    proj = db.get_project(args.id)
+    if not proj:
+        print(f"[!] Project '{args.id}' not found.")
+        return
+        
+    print(f"\n=== Update Project: {proj.title} ===")
+    print("(Press Enter to keep the current value shown in brackets)")
+    
+    title = input(f"\nTitle [{proj.title}]: ").strip() or proj.title
+    
+    list_contexts()  # Inject context table
+    valid_contexts = {row[0] for row in db.get_all_contexts()}
+    while True:
+        context_id = input(f"Context ID [{proj.context_id}]: ").strip() or proj.context_id
+        if context_id in valid_contexts: break
+        print("[!] Invalid Context ID.")
+
+    list_environments()  # Inject environment table
+    valid_envs = {row[0] for row in db.get_all_environments()}
+    while True:
+        env_id = input(f"Environment ID [{proj.environment_id}]: ").strip() or proj.environment_id
+        if env_id in valid_envs: break
+        print("[!] Invalid Environment ID.")
+
+    start_str = input(f"\nStart Date [{proj.start_date.isoformat()}]: ").strip() or proj.start_date.isoformat()
+    start_parts = [int(x) for x in start_str.split("-")]
+    
+    curr_end = proj.end_date.isoformat() if proj.end_date else "None"
+    end_str = input(f"End Date [{curr_end}]: ").strip()
+    end_str = end_str or curr_end
+    end_date_obj = date(*[int(x) for x in end_str.split("-")]) if end_str != "None" else None
+
+    summary = input(f"Summary [{proj.summary}]: ").strip() or proj.summary
+    
+    list_tools()  # Inject tool table
+    curr_tools = ",".join(proj.tool_ids)
+    valid_tools = {row[0] for row in db.get_all_tools()}
+    while True:
+        tools_input = input(f"Tool IDs [{curr_tools}]: ").strip() or curr_tools
+        tool_ids = [t.strip() for t in tools_input.split(",") if t.strip()]
+        invalid_tools = [t for t in tool_ids if t not in valid_tools]
+        if not invalid_tools: break
+        print(f"[!] Invalid Tool IDs: {', '.join(invalid_tools)}")
+
+    print("\n[i] Challenges are overwritten entirely during an update.")
+    keep_challs = input("Keep existing challenges? (Y/n): ").strip().lower()
+    if keep_challs == 'n':
+        challenges_list = []
+        while True:
+            issue = input("\nWhat was the issue? (Leave blank to stop): ").strip()
+            if not issue: break
+            solution = input("How did you solve it?: ").strip()
+            challenges_list.append(Challenge(issue=issue, solution=solution))
+    else:
+        challenges_list = proj.challenges
+        
+    repo_url = input(f"Repo URL [{proj.repo_url or 'None'}]: ").strip()
+    repo_url = repo_url if repo_url != "None" else None
+    
+    updated_proj = Project(
+        id=proj.id, title=title, context_id=context_id, environment_id=env_id,
+        start_date=date(*start_parts), end_date=end_date_obj, summary=summary,
+        tool_ids=tool_ids, challenges=challenges_list, repo_url=repo_url
+    )
+    db.upsert_project(updated_proj)
+    print(f"\n[+] Project '{proj.id}' updated successfully.")
+
+def update_context(args):
+    db = PortfolioDB()
+    ctx = db.get_context(args.id)
+    if not ctx:
+        print(f"[!] Context '{args.id}' not found.")
+        return
+        
+    print(f"\n=== Update Context: {ctx.name} ===")
+    print("(Press Enter to keep the current value shown in brackets)")
+    
+    name = input(f"Name [{ctx.name}]: ").strip() or ctx.name
+    desc = input(f"Description [{ctx.description}]: ").strip() or ctx.description
+    
+    db.upsert_context(Context(id=ctx.id, name=name, description=desc))
+    print(f"[+] Context '{ctx.id}' updated successfully.")
+
+def update_environment(args):
+    db = PortfolioDB()
+    env = db.get_environment(args.id)
+    if not env:
+        print(f"[!] Environment '{args.id}' not found.")
+        return
+        
+    print(f"\n=== Update Environment: {env.name} ===")
+    print("(Press Enter to keep the current value shown in brackets)")
+    
+    name = input(f"Name [{env.name}]: ").strip() or env.name
+    desc = input(f"Description [{env.description}]: ").strip() or env.description
+    
+    db.upsert_environment(Environment(id=env.id, name=name, description=desc))
+    print(f"[+] Environment '{env.id}' updated successfully.")
+
+def update_tool(args):
+    db = PortfolioDB()
+    tool = db.get_tool(args.id)
+    if not tool:
+        print(f"[!] Tool '{args.id}' not found.")
+        return
+        
+    print(f"\n=== Update Tool: {tool.name} ===")
+    print("(Press Enter to keep the current value shown in brackets)")
+    
+    name = input(f"Name [{tool.name}]: ").strip() or tool.name
+    desc = input(f"Description [{tool.description}]: ").strip() or tool.description
+    
+    curr_url = tool.doc_url or "None"
+    url = input(f"Doc URL [{curr_url}]: ").strip() or curr_url
+    url = url if url != "None" else None
+    
+    db.upsert_tool(Tool(id=tool.id, name=name, description=desc, doc_url=url))
+    print(f"[+] Tool '{tool.id}' updated successfully.")
+
+def delete_entity(args):
+    db = PortfolioDB()
+    try:
+        if args.type == "project":
+            if db.delete_project(args.id): print(f"[+] Project '{args.id}' deleted.")
+            else: print(f"[!] Project '{args.id}' not found.")
+        elif args.type == "context":
+            db.delete_context(args.id)
+            print(f"[+] Context '{args.id}' deleted.")
+        elif args.type == "environment":
+            db.delete_environment(args.id)
+            print(f"[+] Environment '{args.id}' deleted.")
+        elif args.type == "tool":
+            db.delete_tool(args.id)
+            print(f"[+] Tool '{args.id}' deleted.")
+    except sqlite3.IntegrityError:
+        print(f"[!] Cannot delete '{args.id}' because it is currently attached to a project.")
+        print("    Reassign or delete the associated projects first.")
 
 # --- Main Parser ---
 def main():
@@ -163,13 +309,34 @@ def main():
     subparsers.add_parser("list-contexts", help="View all contexts")
     subparsers.add_parser("list-environments", help="View all environments")
     subparsers.add_parser("list-tools", help="View all tools")
+    subparsers.add_parser("list-projects", help="View all projects")
+    
+    # Update Project
+    upd_proj_parser = subparsers.add_parser("update-project", help="Update an existing project interactively")
+    upd_proj_parser.add_argument("--id", required=True, help="ID of the project to update")
+    
+    upd_ctx_parser = subparsers.add_parser("update-context", help="Update a context interactively")
+    upd_ctx_parser.add_argument("--id", required=True)
+
+    upd_env_parser = subparsers.add_parser("update-environment", help="Update an environment interactively")
+    upd_env_parser.add_argument("--id", required=True)
+
+    upd_tool_parser = subparsers.add_parser("update-tool", help="Update a tool interactively")
+    upd_tool_parser.add_argument("--id", required=True)
+    
+    # Delete Commands
+    delete_parser = subparsers.add_parser("delete", help="Delete an entity from the database")
+    delete_parser.add_argument("type", choices=["project", "context", "environment", "tool"])
+    delete_parser.add_argument("--id", required=True)
 
     args = parser.parse_args()
 
     commands = {
         "setup": setup_db, "export": export_db, "add-project": interactive_project,
         "add-context": add_context, "add-environment": add_environment, "add-tool": add_tool,
-        "list-contexts": list_contexts, "list-environments": list_environments, "list-tools": list_tools
+        "list-contexts": list_contexts, "list-environments": list_environments, "list-tools": list_tools,
+        "update-project": update_project, "update-context": update_context, "update-environment": update_environment, "update-tool": update_tool,
+        "delete": delete_entity, "list-projects": list_projects
     }
     commands[args.command](args)
 
