@@ -1,0 +1,13 @@
+#!/bin/bash
+# MyResumeProjectsDB CLI Wrapper
+
+VENV_PYTHON=".venv/bin/python3"
+
+# Ensure the virtual environment exists before trying to run
+if [ ! -f "$VENV_PYTHON" ]; then
+    echo "[!] Virtual environment not found. Please ensure it is created at ./.venv"
+    exit 1
+fi
+
+# Execute the CLI module and pass all command-line arguments directly to it
+exec "$VENV_PYTHON" -m src.cli "$@"
