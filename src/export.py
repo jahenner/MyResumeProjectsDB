@@ -49,7 +49,7 @@ def export_portfolio_to_json(db_path: str = "portfolio.db", output_file: str = "
             
         export_document = {
             "metadata": {
-                "format": "DevDossier-v1",
+                "format": "MyResumeProjectsDB-v1",
                 "exported_records": len(projects_payload)
             },
             "resume_projects": projects_payload
