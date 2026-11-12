@@ -1,5 +1,6 @@
 import sqlite3
 import json
+from typing import List
 from dataclasses import asdict
 
 from .schema import Project, Context, Tool, Environment
@@ -129,3 +130,15 @@ class PortfolioDB:
                 """, (project.id, tool_id))
                 
             conn.commit()
+            
+    def get_all_contexts(self) -> List[tuple]:
+        with self.get_connection() as conn:
+            return conn.execute("SELECT id, name FROM contexts ORDER BY name").fetchall()
+
+    def get_all_environments(self) -> List[tuple]:
+        with self.get_connection() as conn:
+            return conn.execute("SELECT id, name FROM environments ORDER BY name").fetchall()
+
+    def get_all_tools(self) -> List[tuple]:
+        with self.get_connection() as conn:
+            return conn.execute("SELECT id, name FROM tools ORDER BY name").fetchall()
