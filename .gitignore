@@ -7,6 +7,9 @@
 portfolio.db
 portfolio.db-journal
 
+# Exports
+portfolio.json
+
 # Python Cache
 __pycache__/
 *.pyc
