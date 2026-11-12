@@ -1,5 +1,4 @@
 import unittest
-import sqlite3
 import json
 import tempfile
 import os
