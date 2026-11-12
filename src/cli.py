@@ -203,8 +203,10 @@ def update_project(args):
     else:
         challenges_list = proj.challenges
         
-    repo_url = input(f"Repo URL [{proj.repo_url or 'None'}]: ").strip()
-    repo_url = repo_url if repo_url != "None" else None
+    curr_repo = proj.repo_url or "None"
+    repo_input = input(f"Repo URL [{curr_repo}]: ").strip()
+    final_repo = repo_input or curr_repo
+    repo_url = final_repo if final_repo != "None" else None
     
     updated_proj = Project(
         id=proj.id, title=title, context_id=context_id, environment_id=env_id,
